@@ -5,5 +5,5 @@ window.NEXO_CONFIG = {
   SUPABASE_ANON_KEY: 'sb_publishable_zcNyqUL1CZtNrpx1TrdiGA_i8r_JQIP',
 
   // URL del backend PHP (cámbiala al publicar)
-  API_BASE_URL: 'http://localhost/nexo/backend/public/api'
+  API_BASE_URL: 'https://nexo-backend-e4nt.onrender.com/api'
 };
