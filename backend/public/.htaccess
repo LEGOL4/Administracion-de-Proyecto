@@ -1,0 +1,9 @@
+RewriteEngine On
+
+# Apache (XAMPP) suele quitar la cabecera Authorization: se reenvía a PHP
+RewriteCond %{HTTP:Authorization} ^(.*)
+RewriteRule .* - [E=HTTP_AUTHORIZATION:%1]
+
+# Todo lo que no sea un archivo real va al front controller
+RewriteCond %{REQUEST_FILENAME} !-f
+RewriteRule ^ index.php [QSA,L]
