@@ -3,68 +3,155 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>NEXO · Sistema de Ventas e Inventario</title>
+<title>NEXO · Ventas e inventario</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Big+Shoulders+Display:wght@600;700;800&family=Instrument+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="css/style.css">
 </head>
 <body>
 
 <!-- ============ PANTALLA DE AUTENTICACIÓN ============ -->
 <div id="auth-screen" class="auth-screen">
-  <div class="auth-panel">
-    <div class="auth-brand">
-      <span class="brand-mark">N</span>
-      <div>
-        <h1>NEXO</h1>
-        <p>Ventas &amp; Inventario</p>
+
+  <aside class="auth-aside" aria-label="Presentación de NEXO">
+    <div class="aside-top">
+      <p class="auth-wordmark">NEXO</p>
+      <h1 class="aside-title">Cada venta descuenta su stock.</h1>
+      <p class="aside-text">Registra pedidos, controla el inventario y consulta el historial de tus clientes desde un solo lugar.</p>
+    </div>
+
+    <div class="shelf" aria-hidden="true">
+      <p class="shelf-caption">Vista de ejemplo del inventario</p>
+      <ul class="shelf-list">
+        <li class="shelf-tag" data-status="ok">
+          <span class="shelf-loc">A-01</span>
+          <span class="shelf-name">Teclado mecánico TK-80</span>
+          <span class="shelf-qty" data-qty="24">24</span>
+          <span class="shelf-status">Disponible</span>
+        </li>
+        <li class="shelf-tag" data-status="low">
+          <span class="shelf-loc">A-02</span>
+          <span class="shelf-name">Mouse inalámbrico Orbit</span>
+          <span class="shelf-qty" data-qty="4">4</span>
+          <span class="shelf-status">Stock bajo</span>
+        </li>
+        <li class="shelf-tag" data-status="ok">
+          <span class="shelf-loc">B-01</span>
+          <span class="shelf-name">Monitor 24" FullHD</span>
+          <span class="shelf-qty" data-qty="12">12</span>
+          <span class="shelf-status">Disponible</span>
+        </li>
+        <li class="shelf-tag" data-status="ok">
+          <span class="shelf-loc">B-02</span>
+          <span class="shelf-name">Laptop UltraBook 14"</span>
+          <span class="shelf-qty" data-qty="6">6</span>
+          <span class="shelf-status">Disponible</span>
+        </li>
+        <li class="shelf-tag" data-status="out">
+          <span class="shelf-loc">C-01</span>
+          <span class="shelf-name">Audífonos NoiseOut</span>
+          <span class="shelf-qty" data-qty="0">0</span>
+          <span class="shelf-status">Agotado</span>
+        </li>
+      </ul>
+    </div>
+  </aside>
+
+  <main class="auth-main">
+    <div class="auth-card">
+      <div class="auth-tabs" role="tablist" aria-label="Acceso">
+        <button class="auth-tab active" role="tab" aria-selected="true" aria-controls="login-form" data-tab="login" id="tab-login">Iniciar sesión</button>
+        <button class="auth-tab" role="tab" aria-selected="false" aria-controls="register-form" data-tab="register" id="tab-register">Crear cuenta</button>
       </div>
+
+      <!-- INICIAR SESIÓN -->
+      <form id="login-form" class="auth-form" role="tabpanel" aria-labelledby="tab-login" novalidate>
+        <div class="auth-form-head">
+          <h2>Bienvenido de nuevo</h2>
+          <p>Ingresa con tu correo y contraseña.</p>
+        </div>
+
+        <div class="field">
+          <label for="login-email">Correo electrónico</label>
+          <input type="email" id="login-email" autocomplete="email" inputmode="email" placeholder="nombre@correo.com">
+          <p class="field-msg" id="login-email-msg" role="alert"></p>
+        </div>
+
+        <div class="field">
+          <label for="login-password">Contraseña</label>
+          <div class="pw-wrap">
+            <input type="password" id="login-password" autocomplete="current-password" placeholder="Tu contraseña">
+            <button type="button" class="pw-toggle" data-toggle="login-password" aria-pressed="false">Mostrar</button>
+          </div>
+          <p class="field-msg" id="login-password-msg" role="alert"></p>
+        </div>
+
+        <p class="form-error" id="login-error" role="alert"></p>
+        <button type="submit" class="btn-primary btn-block">Iniciar sesión</button>
+
+        <div class="auth-divider"><span>o</span></div>
+
+        <button type="button" id="google-login-btn" class="btn-google btn-block">
+          <svg width="18" height="18" viewBox="0 0 48 48" aria-hidden="true"><path fill="#FFC107" d="M43.6 20.5H42V20H24v8h11.3C33.7 32.4 29.3 35.5 24 35.5c-6.9 0-12.5-5.6-12.5-12.5S17.1 10.5 24 10.5c3.2 0 6.1 1.2 8.3 3.2l5.7-5.7C34.6 4.9 29.6 3 24 3 12.4 3 3 12.4 3 24s9.4 21 21 21 21-9.4 21-21c0-1.2-.1-2.4-.4-3.5z"/><path fill="#FF3D00" d="M6.3 14.7l6.6 4.8C14.6 15.9 18.9 13 24 13c3.2 0 6.1 1.2 8.3 3.2l5.7-5.7C34.6 6.9 29.6 5 24 5c-7.6 0-14.1 4.3-17.4 10.7z"/><path fill="#4CAF50" d="M24 45c5.5 0 10.5-1.9 14.3-5.1l-6.6-5.4C29.6 36.2 26.9 37 24 37c-5.3 0-9.7-3.1-11.3-7.6l-6.6 5c3.3 6.5 9.8 10.6 17.9 10.6z"/><path fill="#1976D2" d="M43.6 20.5H42V20H24v8h11.3c-.8 2.2-2.2 4.1-4.1 5.5l6.6 5.4C41.2 36.1 45 30.6 45 24c0-1.2-.1-2.4-.4-3.5z"/></svg>
+          Continuar con Google
+        </button>
+
+        <p class="auth-switch">¿No tienes cuenta? <button type="button" class="link-btn" data-switch="register">Crear cuenta</button></p>
+      </form>
+
+      <!-- CREAR CUENTA -->
+      <form id="register-form" class="auth-form hidden" role="tabpanel" aria-labelledby="tab-register" novalidate>
+        <div class="auth-form-head">
+          <h2>Crea tu cuenta</h2>
+          <p>Solo te toma un minuto.</p>
+        </div>
+
+        <div class="field">
+          <label for="reg-nombre">Nombre completo</label>
+          <input type="text" id="reg-nombre" autocomplete="name" maxlength="80" placeholder="Nombre y apellido">
+          <p class="field-msg" id="reg-nombre-msg" role="alert"></p>
+        </div>
+
+        <div class="field">
+          <label for="reg-email">Correo electrónico</label>
+          <input type="email" id="reg-email" autocomplete="email" inputmode="email" placeholder="nombre@correo.com">
+          <p class="field-msg" id="reg-email-msg" role="alert"></p>
+        </div>
+
+        <div class="field">
+          <label for="reg-password">Contraseña</label>
+          <div class="pw-wrap">
+            <input type="password" id="reg-password" autocomplete="new-password" maxlength="72" placeholder="Mínimo 6 caracteres">
+            <button type="button" class="pw-toggle" data-toggle="reg-password" aria-pressed="false">Mostrar</button>
+          </div>
+          <div class="pw-meter" id="reg-meter" data-level="0" aria-hidden="true"><span></span><span></span><span></span></div>
+          <p class="field-msg" id="reg-password-msg" role="alert"></p>
+        </div>
+
+        <div class="field">
+          <label for="reg-password2">Repite la contraseña</label>
+          <div class="pw-wrap">
+            <input type="password" id="reg-password2" autocomplete="new-password" maxlength="72" placeholder="Escríbela otra vez">
+            <button type="button" class="pw-toggle" data-toggle="reg-password2" aria-pressed="false">Mostrar</button>
+          </div>
+          <p class="field-msg" id="reg-password2-msg" role="alert"></p>
+        </div>
+
+        <p class="form-error" id="register-error" role="alert"></p>
+        <button type="submit" class="btn-primary btn-block">Crear cuenta</button>
+
+        <div class="auth-divider"><span>o</span></div>
+
+        <button type="button" id="google-register-btn" class="btn-google btn-block">
+          <svg width="18" height="18" viewBox="0 0 48 48" aria-hidden="true"><path fill="#FFC107" d="M43.6 20.5H42V20H24v8h11.3C33.7 32.4 29.3 35.5 24 35.5c-6.9 0-12.5-5.6-12.5-12.5S17.1 10.5 24 10.5c3.2 0 6.1 1.2 8.3 3.2l5.7-5.7C34.6 4.9 29.6 3 24 3 12.4 3 3 12.4 3 24s9.4 21 21 21 21-9.4 21-21c0-1.2-.1-2.4-.4-3.5z"/><path fill="#FF3D00" d="M6.3 14.7l6.6 4.8C14.6 15.9 18.9 13 24 13c3.2 0 6.1 1.2 8.3 3.2l5.7-5.7C34.6 6.9 29.6 5 24 5c-7.6 0-14.1 4.3-17.4 10.7z"/><path fill="#4CAF50" d="M24 45c5.5 0 10.5-1.9 14.3-5.1l-6.6-5.4C29.6 36.2 26.9 37 24 37c-5.3 0-9.7-3.1-11.3-7.6l-6.6 5c3.3 6.5 9.8 10.6 17.9 10.6z"/><path fill="#1976D2" d="M43.6 20.5H42V20H24v8h11.3c-.8 2.2-2.2 4.1-4.1 5.5l6.6 5.4C41.2 36.1 45 30.6 45 24c0-1.2-.1-2.4-.4-3.5z"/></svg>
+          Registrarme con Google
+        </button>
+
+        <p class="auth-switch">¿Ya tienes cuenta? <button type="button" class="link-btn" data-switch="login">Iniciar sesión</button></p>
+      </form>
     </div>
-
-    <div class="auth-tabs">
-      <button class="auth-tab active" data-tab="login">Iniciar sesión</button>
-      <button class="auth-tab" data-tab="register">Crear cuenta</button>
-    </div>
-
-    <!-- LOGIN -->
-    <form id="login-form" class="auth-form">
-      <label>Correo electrónico
-        <input type="email" id="login-email" required placeholder="tucorreo@empresa.com">
-      </label>
-      <label>Contraseña
-        <input type="password" id="login-password" required placeholder="••••••••">
-      </label>
-      <p class="form-error" id="login-error"></p>
-      <button type="submit" class="btn-primary">Ingresar</button>
-
-      <div class="auth-divider"><span>o</span></div>
-
-      <button type="button" id="google-login-btn" class="btn-google">
-        <svg width="18" height="18" viewBox="0 0 48 48" aria-hidden="true"><path fill="#FFC107" d="M43.6 20.5H42V20H24v8h11.3C33.7 32.4 29.3 35.5 24 35.5c-6.9 0-12.5-5.6-12.5-12.5S17.1 10.5 24 10.5c3.2 0 6.1 1.2 8.3 3.2l5.7-5.7C34.6 4.9 29.6 3 24 3 12.4 3 3 12.4 3 24s9.4 21 21 21 21-9.4 21-21c0-1.2-.1-2.4-.4-3.5z"/><path fill="#FF3D00" d="M6.3 14.7l6.6 4.8C14.6 15.9 18.9 13 24 13c3.2 0 6.1 1.2 8.3 3.2l5.7-5.7C34.6 6.9 29.6 5 24 5c-7.6 0-14.1 4.3-17.4 10.7z"/><path fill="#4CAF50" d="M24 45c5.5 0 10.5-1.9 14.3-5.1l-6.6-5.4C29.6 36.2 26.9 37 24 37c-5.3 0-9.7-3.1-11.3-7.6l-6.6 5c3.3 6.5 9.8 10.6 17.9 10.6z"/><path fill="#1976D2" d="M43.6 20.5H42V20H24v8h11.3c-.8 2.2-2.2 4.1-4.1 5.5l6.6 5.4C41.2 36.1 45 30.6 45 24c0-1.2-.1-2.4-.4-3.5z"/></svg>
-        Continuar con Google
-      </button>
-      <p class="auth-hint auth-hint-google">Acceso exclusivo para clientes</p>
-
-      <p class="auth-hint">Administradores y vendedores: ingresa con el correo y la contraseña que te asignó tu empresa.</p>
-    </form>
-
-    <!-- REGISTRO -->
-    <form id="register-form" class="auth-form hidden">
-      <label>Nombre completo
-        <input type="text" id="reg-nombre" required placeholder="Nombre y apellido">
-      </label>
-      <label>Correo electrónico
-        <input type="email" id="reg-email" required placeholder="tucorreo@empresa.com">
-      </label>
-      <label>Contraseña
-        <input type="password" id="reg-password" required minlength="6" placeholder="Mínimo 6 caracteres">
-      </label>
-      <p class="form-error" id="register-error"></p>
-      <button type="submit" class="btn-primary">Crear cuenta de cliente</button>
-      <p class="auth-hint">Esta opción es solo para clientes. Las cuentas de vendedor y administrador las crea el administrador del sistema.</p>
-    </form>
-  </div>
+  </main>
 </div>
 
 <!-- ============ APLICACIÓN ============ -->
@@ -72,7 +159,7 @@
   <aside class="sidebar">
     <div class="sidebar-brand">
       <span class="brand-mark">N</span>
-      <span>NEXO</span>
+      <span class="brand-word">NEXO</span>
     </div>
 
     <div class="sidebar-user">
@@ -83,7 +170,7 @@
       </div>
     </div>
 
-    <nav id="sidebar-nav" class="sidebar-nav"></nav>
+    <nav id="sidebar-nav" class="sidebar-nav" aria-label="Secciones"></nav>
 
     <button id="logout-btn" class="btn-ghost logout-btn">Cerrar sesión</button>
   </aside>
@@ -99,7 +186,7 @@
 
 <!-- ============ MODAL GENÉRICO ============ -->
 <div id="modal-overlay" class="modal-overlay hidden">
-  <div class="modal">
+  <div class="modal" role="dialog" aria-modal="true" aria-labelledby="modal-title">
     <div class="modal-head">
       <h3 id="modal-title">Título</h3>
       <button id="modal-close" class="modal-close" aria-label="Cerrar">&times;</button>
@@ -108,8 +195,8 @@
   </div>
 </div>
 
-<!-- ============ TOASTS ============ -->
-<div id="toast-container" class="toast-container"></div>
+<!-- ============ AVISOS ============ -->
+<div id="toast-container" class="toast-container" role="status" aria-live="polite"></div>
 
 <script src="js/config.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.min.js"></script>

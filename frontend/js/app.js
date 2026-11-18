@@ -16,7 +16,20 @@ const ROLES = {
   CLIENTE: 'cliente'
 };
 
-function money(n){ return 'S/ ' + Number(n || 0).toFixed(2); }
+/* Iconos de línea (SVG) para el menú y los estados vacíos */
+const svgIcon = d => `<svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${d}</svg>`;
+const ICON = {
+  panel:    svgIcon('<path d="M4 13h6V4H4zM14 20h6v-9h-6zM4 20h6v-3H4zM14 8h6V4h-6z"/>'),
+  box:      svgIcon('<path d="M3 7.5 12 3l9 4.5v9L12 21l-9-4.5zM3 7.5l9 4.5 9-4.5M12 12v9"/>'),
+  layers:   svgIcon('<path d="m12 3 9 5-9 5-9-5zM3 12.5l9 5 9-5M3 17l9 5 9-5"/>'),
+  users:    svgIcon('<circle cx="9" cy="8" r="3.5"/><path d="M2.5 20c.6-3.6 3.2-5.5 6.5-5.5s5.9 1.9 6.5 5.5M16 4.8a3.5 3.5 0 0 1 0 6.4M18.5 14.8c1.7.7 2.8 2.3 3 5"/>'),
+  chart:    svgIcon('<path d="M4 4v16h16M8 16v-5M12 16V8M16 16v-3"/>'),
+  plus:     svgIcon('<path d="M12 5v14M5 12h14"/>'),
+  receipt:  svgIcon('<path d="M6 3h12v18l-3-2-3 2-3-2-3 2zM9 8h6M9 12h6"/>'),
+  user:     svgIcon('<circle cx="12" cy="8" r="4"/><path d="M4 21c.8-4 4-6 8-6s7.2 2 8 6"/>'),
+};
+
+function money(n){ return 'S/ ' + Number(n || 0).toLocaleString('es-PE', { minimumFractionDigits:2, maximumFractionDigits:2 }); }
 function formatDate(iso){
   const d = new Date(iso);
   return d.toLocaleDateString('es-PE', { day:'2-digit', month:'short', year:'numeric' }) + ' · ' +
@@ -31,22 +44,22 @@ function formatDate(iso){
 
 const NAV_BY_ROLE = {
   [ROLES.ADMIN]: [
-    { id:'dashboard',  label:'Panel general',        icon:'◧' },
-    { id:'catalogo',   label:'Catálogo de productos', icon:'▣' },
-    { id:'inventario', label:'Stock e inventario',    icon:'▤' },
-    { id:'usuarios',   label:'Usuarios y clientes',   icon:'◍' },
-    { id:'reportes',   label:'Reportes comerciales',  icon:'▦' },
+    { id:'dashboard',  label:'Panel general',        icon:ICON.panel },
+    { id:'catalogo',   label:'Catálogo de productos', icon:ICON.box },
+    { id:'inventario', label:'Stock e inventario',    icon:ICON.layers },
+    { id:'usuarios',   label:'Usuarios y clientes',   icon:ICON.users },
+    { id:'reportes',   label:'Reportes comerciales',  icon:ICON.chart },
   ],
   [ROLES.VENDEDOR]: [
     // Sin "Panel general": ese módulo es exclusivo del administrador.
-    { id:'nuevo-pedido', label:'Nuevo pedido',        icon:'＋' },
-    { id:'mis-ventas', label:'Mis ventas',            icon:'▤' },
-    { id:'clientes',   label:'Historial de clientes', icon:'◍' },
+    { id:'nuevo-pedido', label:'Nuevo pedido',        icon:ICON.plus },
+    { id:'mis-ventas', label:'Mis ventas',            icon:ICON.receipt },
+    { id:'clientes',   label:'Historial de clientes', icon:ICON.users },
   ],
   [ROLES.CLIENTE]: [
-    { id:'catalogo-cliente', label:'Catálogo',        icon:'▣' },
-    { id:'mis-pedidos',      label:'Mis pedidos',     icon:'▤' },
-    { id:'perfil',           label:'Mi perfil',       icon:'◍' },
+    { id:'catalogo-cliente', label:'Catálogo',        icon:ICON.box },
+    { id:'mis-pedidos',      label:'Mis pedidos',     icon:ICON.receipt },
+    { id:'perfil',           label:'Mi perfil',       icon:ICON.user },
   ],
 };
 
@@ -122,12 +135,11 @@ const Auth = {
   },
 
   async loginGoogle(){
-    // Exclusivo para clientes: el trigger de la base de datos asigna el rol
-    // "cliente" automáticamente a toda cuenta nueva creada por este proveedor,
-    // y handleSessionObtained() vuelve a validarlo por seguridad.
+    // Sirve para iniciar sesión y para crear la cuenta: el trigger de la base de
+    // datos asigna el rol "cliente" a toda cuenta nueva creada con este proveedor.
     const { error } = await supabase.auth.signInWithOAuth({
       provider: 'google',
-      options: { redirectTo: window.location.href }
+      options: { redirectTo: window.location.origin + window.location.pathname }
     });
     if (error) toast(traducirErrorAuth(error.message), 'error');
   },
@@ -139,10 +151,15 @@ const Auth = {
 
 function traducirErrorAuth(msg){
   const m = (msg || '').toLowerCase();
-  if (m.includes('invalid login credentials')) return 'Correo o contraseña incorrectos.';
-  if (m.includes('user already registered')) return 'Ya existe una cuenta con ese correo.';
-  if (m.includes('password should be at least')) return 'La contraseña debe tener al menos 6 caracteres.';
-  if (m.includes('email not confirmed')) return 'Debes confirmar tu correo antes de ingresar.';
+  if (m.includes('invalid login credentials')) return 'Correo o contraseña incorrectos. Revisa tus datos e inténtalo otra vez.';
+  if (m.includes('already registered') || m.includes('already been registered') || m.includes('ya existe') || m.includes('duplicate'))
+    return 'Ya existe una cuenta con ese correo. Inicia sesión o usa otro correo.';
+  if (m.includes('password should be at least') || m.includes('contraseña debe'))
+    return 'La contraseña es muy corta: necesita al menos 6 caracteres.';
+  if (m.includes('email not confirmed')) return 'Falta confirmar tu correo. Revisa tu bandeja de entrada y abre el enlace que te enviamos.';
+  if (m.includes('rate limit') || m.includes('too many')) return 'Hiciste demasiados intentos. Espera unos minutos e inténtalo de nuevo.';
+  if (m.includes('invalid email') || m.includes('unable to validate email')) return 'El correo no es válido. Revisa que esté bien escrito.';
+  if (m.includes('failed to fetch') || m.includes('network')) return 'No se pudo conectar. Revisa tu conexión a internet.';
   return msg;
 }
 
@@ -246,7 +263,7 @@ async function goTo(viewId){
   if (!allowed || !routes[viewId]) {
     setTitle('Acceso no disponible', '');
     document.getElementById('view-content').innerHTML = `
-      <div class="empty-state"><div class="empty-icon">⛔</div><p>No tienes permisos para ver esta sección.</p></div>`;
+      <div class="empty-state"><div class="empty-icon">${ICON.box}</div><p>No tienes permisos para ver esta sección.</p></div>`;
     return;
   }
   document.getElementById('view-content').innerHTML = loading();
@@ -284,7 +301,7 @@ function stockBadge(stock){
 }
 function estadoBadge(estado){
   const map = { completado:'badge-good', pendiente:'badge-warn', cancelado:'badge-bad' };
-  return `<span class="badge ${map[estado]||'badge-neutral'}">${estado}</span>`;
+  return `<span class="badge ${map[estado]||'badge-neutral'}">${estado.charAt(0).toUpperCase() + estado.slice(1)}</span>`;
 }
 function productImg(p, size='normal'){
   const cls = size === 'sm' ? 'product-img-sm' : 'product-img';
@@ -351,7 +368,7 @@ async function renderCatalogoAdmin(){
               <button class="btn-danger btn-small" data-del="${p.id}">Eliminar</button>
             </td>
           </tr>`).join('')}</tbody>
-      </table>` : `<div class="empty-state"><div class="empty-icon">▣</div><p>No se encontraron productos.</p></div>`;
+      </table>` : `<div class="empty-state"><div class="empty-icon">${ICON.box}</div><p>No se encontraron productos.</p></div>`;
 
     content.querySelectorAll('[data-edit]').forEach(b => b.addEventListener('click', () => productForm(allProducts.find(p=>p.id===b.dataset.edit))));
     content.querySelectorAll('[data-del]').forEach(b => b.addEventListener('click', async () => {
@@ -501,7 +518,7 @@ async function renderUsuarios(){
               ${u.id === currentSession.id ? '<span class="cell-muted">Tú</span>' : `<button class="btn-danger btn-small" data-deluser="${u.id}">Eliminar</button>`}
             </td>
           </tr>`).join('')}</tbody>
-      </table>` : `<div class="empty-state"><div class="empty-icon">◍</div><p>No se encontraron usuarios.</p></div>`;
+      </table>` : `<div class="empty-state"><div class="empty-icon">${ICON.box}</div><p>No se encontraron usuarios.</p></div>`;
 
     wrap.querySelectorAll('[data-role]').forEach(sel => sel.addEventListener('change', async () => {
       try { await Data.updateProfileRol(sel.dataset.role, sel.value); toast('Rol actualizado', 'success'); }
@@ -604,7 +621,7 @@ async function renderReportes(){
 }
 
 function renderOrdersTable(orders){
-  if (!orders.length) return `<div class="empty-state"><div class="empty-icon">▤</div><p>Sin registros todavía.</p></div>`;
+  if (!orders.length) return `<div class="empty-state"><div class="empty-icon">${ICON.box}</div><p>Sin registros todavía.</p></div>`;
   return `<table>
     <thead><tr><th>Cliente</th><th>Vendedor</th><th>Fecha</th><th>Total</th><th>Estado</th></tr></thead>
     <tbody>${orders.map(o => `
@@ -833,7 +850,7 @@ async function renderMisPedidos(){
               ${o.items.map(it => `<div class="cart-line"><span>${it.cantidad} × ${it.nombre}</span><span>${money(it.precioUnit*it.cantidad)}</span></div>`).join('')}
               <div class="cart-total"><span>Total</span><span>${money(o.total)}</span></div>
             </div>
-          </div>`).join('') : `<div class="empty-state"><div class="empty-icon">▤</div><p>Todavía no realizaste ningún pedido.</p></div>`}
+          </div>`).join('') : `<div class="empty-state"><div class="empty-icon">${ICON.box}</div><p>Todavía no realizaste ningún pedido.</p></div>`}
       </div>
     </div>`;
 }
@@ -854,50 +871,228 @@ async function renderPerfil(){
 }
 
 /* =========================================================================
-   EVENTOS GLOBALES — AUTENTICACIÓN
+   AUTENTICACIÓN — validación de formularios y eventos
+   Los mensajes se muestran debajo de cada campo: al salir del campo, al
+   escribir (una vez tocado) y al enviar el formulario.
    ========================================================================= */
 
-document.querySelectorAll('.auth-tab').forEach(tab => {
-  tab.addEventListener('click', () => {
-    document.querySelectorAll('.auth-tab').forEach(t => t.classList.remove('active'));
-    tab.classList.add('active');
-    document.getElementById('login-form').classList.toggle('hidden', tab.dataset.tab !== 'login');
-    document.getElementById('register-form').classList.toggle('hidden', tab.dataset.tab !== 'register');
+const MIN_PASSWORD = 6;
+const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/;
+const $ = id => document.getElementById(id);
+const plural = (n, uno, varios) => (n === 1 ? uno : varios);
+
+function passwordStrength(v){
+  let score = 0;
+  if (v.length >= 8) score++;
+  if (/[a-z]/.test(v) && /[A-Z]/.test(v)) score++;
+  if (/\d/.test(v)) score++;
+  if (/[^A-Za-z0-9]/.test(v)) score++;
+  if (v.length < MIN_PASSWORD) return 0;
+  return score <= 1 ? 1 : (score === 2 ? 2 : 3);
+}
+
+const Check = {
+  email(v){
+    v = v.trim();
+    if (!v) return { state:'error', text:'Escribe tu correo electrónico.' };
+    if (!v.includes('@')) return { state:'error', text:'Al correo le falta el @. Ejemplo: nombre@correo.com' };
+    if (!EMAIL_RE.test(v)) return { state:'error', text:'Al correo le falta el dominio. Ejemplo: nombre@correo.com' };
+    return { state:'ok' };
+  },
+  nombre(v){
+    v = v.trim().replace(/\s+/g, ' ');
+    if (!v) return { state:'error', text:'Escribe tu nombre completo.' };
+    if (v.length < 3) return { state:'error', text:'El nombre es muy corto: escribe al menos 3 letras.' };
+    return { state:'ok' };
+  },
+  passwordLogin(v){
+    if (!v) return { state:'error', text:'Escribe tu contraseña.' };
+    if (v.length < MIN_PASSWORD) {
+      return { state:'error', text:`La contraseña es muy corta: tiene ${v.length} ${plural(v.length, 'carácter', 'caracteres')} y necesita al menos ${MIN_PASSWORD}.` };
+    }
+    return { state:'ok' };
+  },
+  passwordNew(v){
+    if (!v) return { state:'error', text:`Crea una contraseña de al menos ${MIN_PASSWORD} caracteres.` };
+    if (v.length < MIN_PASSWORD) {
+      const f = MIN_PASSWORD - v.length;
+      return { state:'short', text:`Te ${plural(f, 'falta', 'faltan')} ${f} ${plural(f, 'carácter', 'caracteres')} (mínimo ${MIN_PASSWORD}).` };
+    }
+    const lvl = ['', 'básica', 'media', 'fuerte'][passwordStrength(v)];
+    return { state:'ok', text:`Contraseña válida. Seguridad ${lvl}.` };
+  },
+  confirm(v){
+    if (!v) return { state:'error', text:'Repite tu contraseña.' };
+    if (v !== $('reg-password').value) return { state:'error', text:'Las contraseñas no coinciden.' };
+    return { state:'ok', text:'Las contraseñas coinciden.' };
+  }
+};
+
+const LOGIN_FIELDS = [
+  { input:'login-email',    msg:'login-email-msg',    check:Check.email },
+  { input:'login-password', msg:'login-password-msg', check:Check.passwordLogin },
+];
+const REGISTER_FIELDS = [
+  { input:'reg-nombre',    msg:'reg-nombre-msg',    check:Check.nombre },
+  { input:'reg-email',     msg:'reg-email-msg',     check:Check.email },
+  { input:'reg-password',  msg:'reg-password-msg',  check:Check.passwordNew, hint:`Usa al menos ${MIN_PASSWORD} caracteres.`, meter:'reg-meter' },
+  { input:'reg-password2', msg:'reg-password2-msg', check:Check.confirm },
+];
+const ALL_FIELDS = [...LOGIN_FIELDS, ...REGISTER_FIELDS];
+const touched = new Set();
+
+/* Pinta el mensaje de un campo. Devuelve true si el valor es válido. */
+function paintField(f, force = false){
+  const input = $(f.input), msg = $(f.msg);
+  const res = f.check(input.value);
+  const show = force || touched.has(f.input);
+  let state = '', text = f.hint || '';
+
+  if (res.state === 'short') {
+    // Mientras escribe muestra cuántos caracteres faltan; en rojo al salir del campo.
+    text = res.text; state = show ? 'error' : 'hint';
+  } else if (res.state === 'error') {
+    if (show) { text = res.text; state = 'error'; }
+  } else if (res.state === 'ok' && res.text && input.value) {
+    text = res.text; state = 'ok';
+  }
+
+  msg.textContent = text;
+  msg.dataset.state = state;
+  input.setAttribute('aria-invalid', state === 'error' ? 'true' : 'false');
+  if (f.meter) $(f.meter).dataset.level = String(passwordStrength(input.value));
+  return res.state === 'ok';
+}
+
+/* Valida todos los campos de un formulario; enfoca el primero con error. */
+function validateForm(fields){
+  let firstBad = null;
+  fields.forEach(f => {
+    touched.add(f.input);
+    if (!paintField(f, true) && !firstBad) firstBad = f.input;
+  });
+  if (firstBad) $(firstBad).focus();
+  return !firstBad;
+}
+
+ALL_FIELDS.forEach(f => {
+  const input = $(f.input);
+  paintField(f);
+  input.addEventListener('input', () => {
+    paintField(f);
+    if (f.input === 'reg-password' && touched.has('reg-password2')) paintField(REGISTER_FIELDS[3]);
+    $('login-error').textContent = ''; $('register-error').textContent = '';
+  });
+  input.addEventListener('blur', () => { touched.add(f.input); paintField(f); });
+});
+
+/* Mostrar / ocultar contraseña */
+document.querySelectorAll('.pw-toggle').forEach(btn => {
+  btn.addEventListener('click', () => {
+    const input = $(btn.dataset.toggle);
+    const show = input.type === 'password';
+    input.type = show ? 'text' : 'password';
+    btn.textContent = show ? 'Ocultar' : 'Mostrar';
+    btn.setAttribute('aria-pressed', String(show));
   });
 });
 
-document.getElementById('login-form').addEventListener('submit', async e => {
+/* Cambio entre "Iniciar sesión" y "Crear cuenta" */
+function showAuthTab(name){
+  document.querySelectorAll('.auth-tab').forEach(t => {
+    const on = t.dataset.tab === name;
+    t.classList.toggle('active', on);
+    t.setAttribute('aria-selected', String(on));
+  });
+  $('login-form').classList.toggle('hidden', name !== 'login');
+  $('register-form').classList.toggle('hidden', name !== 'register');
+  $('login-error').textContent = ''; $('register-error').textContent = '';
+}
+document.querySelectorAll('.auth-tab').forEach(tab => tab.addEventListener('click', () => showAuthTab(tab.dataset.tab)));
+document.querySelectorAll('[data-switch]').forEach(btn => btn.addEventListener('click', () => {
+  showAuthTab(btn.dataset.switch);
+  $(btn.dataset.switch === 'login' ? 'login-email' : 'reg-nombre').focus();
+}));
+
+/* Iniciar sesión */
+$('login-form').addEventListener('submit', async e => {
   e.preventDefault();
-  const email = document.getElementById('login-email').value.trim();
-  const password = document.getElementById('login-password').value;
-  const errorEl = document.getElementById('login-error');
+  const errorEl = $('login-error');
+  errorEl.textContent = '';
+  if (!validateForm(LOGIN_FIELDS)) return;
+
   const btn = e.target.querySelector('button[type="submit"]');
   btn.disabled = true; btn.textContent = 'Ingresando...';
-  const result = await Auth.loginPassword(email, password);
-  btn.disabled = false; btn.textContent = 'Ingresar';
+  const result = await Auth.loginPassword($('login-email').value.trim(), $('login-password').value);
+  btn.disabled = false; btn.textContent = 'Iniciar sesión';
   if (!result.ok) { errorEl.textContent = result.error; return; }
-  errorEl.textContent = '';
-  // onAuthStateChange se encarga de cargar el perfil y renderizar la app.
+  // onAuthStateChange se encarga de cargar el perfil y mostrar la aplicación.
 });
 
-document.getElementById('register-form').addEventListener('submit', async e => {
+/* Crear cuenta */
+$('register-form').addEventListener('submit', async e => {
   e.preventDefault();
-  const nombre = document.getElementById('reg-nombre').value.trim();
-  const email = document.getElementById('reg-email').value.trim();
-  const password = document.getElementById('reg-password').value;
-  const errorEl = document.getElementById('register-error');
+  const errorEl = $('register-error');
+  errorEl.textContent = '';
+  if (!validateForm(REGISTER_FIELDS)) return;
+
+  const nombre = $('reg-nombre').value.trim().replace(/\s+/g, ' ');
+  const email = $('reg-email').value.trim();
+  const password = $('reg-password').value;
+
   const btn = e.target.querySelector('button[type="submit"]');
   btn.disabled = true; btn.textContent = 'Creando cuenta...';
   const result = await Auth.register(nombre, email, password);
-  btn.disabled = false; btn.textContent = 'Crear cuenta de cliente';
-  if (!result.ok) { errorEl.textContent = result.error; return; }
-  errorEl.textContent = '';
-  e.target.reset();
-  toast('Cuenta creada. Ya puedes iniciar sesión (revisa tu correo si te pedimos confirmarlo).', 'success');
-  document.querySelector('.auth-tab[data-tab="login"]').click();
+  if (!result.ok) {
+    btn.disabled = false; btn.textContent = 'Crear cuenta';
+    errorEl.textContent = traducirErrorAuth(result.error);
+    return;
+  }
+
+  // Cuenta creada: se inicia sesión automáticamente.
+  const login = await Auth.loginPassword(email, password);
+  btn.disabled = false; btn.textContent = 'Crear cuenta';
+  if (!login.ok) {
+    // Por ejemplo, si el proyecto exige confirmar el correo antes de entrar.
+    e.target.reset();
+    ALL_FIELDS.forEach(f => { touched.delete(f.input); paintField(f); });
+    showAuthTab('login');
+    $('login-email').value = email;
+    paintField(LOGIN_FIELDS[0]);
+    $('login-password').focus();
+    toast('Cuenta creada. Inicia sesión para continuar.', 'success');
+  }
 });
 
-document.getElementById('google-login-btn').addEventListener('click', () => Auth.loginGoogle());
+/* Google: sirve para iniciar sesión y para crear la cuenta */
+['google-login-btn', 'google-register-btn'].forEach(id => {
+  const btn = $(id);
+  btn.addEventListener('click', async () => {
+    btn.disabled = true;
+    await Auth.loginGoogle();       // redirige a Google; si falla, muestra el aviso
+    setTimeout(() => { btn.disabled = false; }, 1500);
+  });
+});
+
+/* Animación de entrada del estante (una sola vez al abrir la página) */
+(function initShelf(){
+  const qtys = document.querySelectorAll('.shelf-qty');
+  if (!qtys.length || window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+  qtys.forEach((el, i) => {
+    const target = parseInt(el.dataset.qty, 10) || 0;
+    el.textContent = '0';
+    const delay = 250 + i * 140, dur = 900;
+    setTimeout(() => {
+      const t0 = performance.now();
+      const tick = now => {
+        const p = Math.min(1, (now - t0) / dur);
+        el.textContent = String(Math.round(target * (1 - Math.pow(1 - p, 3))));
+        if (p < 1) requestAnimationFrame(tick);
+      };
+      requestAnimationFrame(tick);
+    }, delay);
+  });
+})();
 
 document.getElementById('logout-btn').addEventListener('click', async () => {
   await Auth.logout();
