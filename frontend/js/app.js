@@ -49,12 +49,14 @@ const NAV_BY_ROLE = {
     { id:'inventario', label:'Stock e inventario',    icon:ICON.layers },
     { id:'usuarios',   label:'Usuarios y clientes',   icon:ICON.users },
     { id:'reportes',   label:'Reportes comerciales',  icon:ICON.chart },
+    { id:'perfil',     label:'Mi perfil',             icon:ICON.user },
   ],
   [ROLES.VENDEDOR]: [
     // Sin "Panel general": ese módulo es exclusivo del administrador.
     { id:'nuevo-pedido', label:'Nuevo pedido',        icon:ICON.plus },
     { id:'mis-ventas', label:'Mis ventas',            icon:ICON.receipt },
     { id:'clientes',   label:'Historial de clientes', icon:ICON.users },
+    { id:'perfil',     label:'Mi perfil',             icon:ICON.user },
   ],
   [ROLES.CLIENTE]: [
     { id:'catalogo-cliente', label:'Catálogo',        icon:ICON.box },
@@ -157,6 +159,7 @@ function traducirErrorAuth(msg){
   if (m.includes('password should be at least') || m.includes('contraseña debe'))
     return 'La contraseña es muy corta: necesita al menos 6 caracteres.';
   if (m.includes('email not confirmed')) return 'Falta confirmar tu correo. Revisa tu bandeja de entrada y abre el enlace que te enviamos.';
+  if (m.includes('different from the old password') || m.includes('same password')) return 'La nueva contraseña debe ser distinta a la actual.';
   if (m.includes('rate limit') || m.includes('too many')) return 'Hiciste demasiados intentos. Espera unos minutos e inténtalo de nuevo.';
   if (m.includes('invalid email') || m.includes('unable to validate email')) return 'El correo no es válido. Revisa que esté bien escrito.';
   if (m.includes('failed to fetch') || m.includes('network')) return 'No se pudo conectar. Revisa tu conexión a internet.';
@@ -855,19 +858,128 @@ async function renderMisPedidos(){
     </div>`;
 }
 
+function refreshSidebarUser(){
+  document.getElementById('user-avatar').textContent = currentSession.nombre.charAt(0).toUpperCase();
+  document.getElementById('user-name').textContent = currentSession.nombre;
+}
+
 async function renderPerfil(){
-  setTitle('Mi perfil', 'Información de tu cuenta');
+  setTitle('Mi perfil', 'Consulta y actualiza tus datos');
   const content = document.getElementById('view-content');
-  const orders = await Data.getOrdersByCliente(currentSession.id);
+  const esCliente = currentSession.rol === ROLES.CLIENTE;
+  const orders = esCliente ? await Data.getOrdersByCliente(currentSession.id) : [];
+  const { data: sessionData } = await supabase.auth.getSession();
+  const provider = sessionData.session?.user?.app_metadata?.provider || 'email';
+  const escapeAttr = v => String(v).replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/</g, '&lt;');
+
   content.innerHTML = `
-    <div class="panel">
-      <div class="panel-body form-grid">
-        <label>Nombre<input value="${currentSession.nombre}" disabled></label>
-        <label>Correo<input value="${currentSession.email}" disabled></label>
-        <label>Rol<input value="${currentSession.rol}" disabled></label>
-        <label>Pedidos realizados<input value="${orders.length}" disabled></label>
+    <div class="profile-grid">
+      <div class="panel">
+        <div class="panel-head"><h3>Datos personales</h3></div>
+        <div class="panel-body">
+          <form id="profile-form" class="profile-form" novalidate>
+            <div class="field">
+              <label for="pf-nombre">Nombre completo</label>
+              <input id="pf-nombre" maxlength="80" autocomplete="name" value="${escapeAttr(currentSession.nombre)}">
+              <p class="field-msg" id="pf-nombre-msg" role="alert"></p>
+            </div>
+            <div class="field">
+              <label for="pf-email">Correo electrónico</label>
+              <input id="pf-email" value="${escapeAttr(currentSession.email)}" disabled>
+              <p class="field-msg" data-state="hint">El correo no se puede cambiar desde aquí.</p>
+            </div>
+            ${esCliente ? `
+            <div class="field">
+              <label for="pf-pedidos">Pedidos realizados</label>
+              <input id="pf-pedidos" value="${orders.length}" disabled>
+            </div>` : ''}
+            <div class="form-actions">
+              <button type="submit" class="btn-primary">Guardar cambios</button>
+            </div>
+          </form>
+        </div>
+      </div>
+
+      <div class="panel">
+        <div class="panel-head"><h3>Contraseña</h3></div>
+        <div class="panel-body">
+          ${provider === 'email' ? `
+          <form id="password-form" class="profile-form" novalidate>
+            <div class="field">
+              <label for="pw-new">Nueva contraseña</label>
+              <input id="pw-new" type="password" autocomplete="new-password" maxlength="72" placeholder="Mínimo 6 caracteres">
+              <p class="field-msg" id="pw-new-msg" role="alert"></p>
+            </div>
+            <div class="field">
+              <label for="pw-new2">Repite la nueva contraseña</label>
+              <input id="pw-new2" type="password" autocomplete="new-password" maxlength="72">
+              <p class="field-msg" id="pw-new2-msg" role="alert"></p>
+            </div>
+            <div class="form-actions">
+              <button type="submit" class="btn-primary">Cambiar contraseña</button>
+            </div>
+          </form>` : `
+          <p class="profile-note">Iniciaste sesión con Google, por eso tu contraseña se administra desde tu cuenta de Google.</p>`}
+        </div>
       </div>
     </div>`;
+
+  const setMsg = (inputId, text) => {
+    const input = document.getElementById(inputId), msg = document.getElementById(inputId + '-msg');
+    msg.textContent = text; msg.dataset.state = text ? 'error' : '';
+    input.setAttribute('aria-invalid', text ? 'true' : 'false');
+    return !text;
+  };
+
+  document.getElementById('profile-form').addEventListener('submit', async e => {
+    e.preventDefault();
+    const nombre = document.getElementById('pf-nombre').value.trim().replace(/\s+/g, ' ');
+    const err = !nombre ? 'Escribe tu nombre completo.' : (nombre.length < 3 ? 'El nombre es muy corto: escribe al menos 3 letras.' : '');
+    if (!setMsg('pf-nombre', err)) { document.getElementById('pf-nombre').focus(); return; }
+    if (nombre === currentSession.nombre) { toast('No hay cambios para guardar.'); return; }
+
+    const btn = e.target.querySelector('button[type="submit"]');
+    btn.disabled = true; btn.textContent = 'Guardando...';
+    // Cada usuario puede actualizar solo su propio perfil (política RLS de Supabase);
+    // el rol está protegido por un trigger y no se puede modificar desde aquí.
+    const { data, error } = await supabase.from('profiles').update({ nombre }).eq('id', currentSession.id).select('id');
+    btn.disabled = false; btn.textContent = 'Guardar cambios';
+    if (error || !data || !data.length) {
+      toast('No se pudo guardar el cambio. Inténtalo de nuevo.', 'error');
+      return;
+    }
+    supabase.auth.updateUser({ data: { nombre } }).catch(() => {});
+    currentSession.nombre = nombre;
+    refreshSidebarUser();
+    toast('Perfil actualizado', 'success');
+  });
+
+  const pwForm = document.getElementById('password-form');
+  if (pwForm) {
+    pwForm.addEventListener('submit', async e => {
+      e.preventDefault();
+      const p1 = document.getElementById('pw-new').value;
+      const p2 = document.getElementById('pw-new2').value;
+      let e1 = '';
+      if (!p1) e1 = 'Escribe la nueva contraseña.';
+      else if (p1.length < MIN_PASSWORD) {
+        const f = MIN_PASSWORD - p1.length;
+        e1 = `Te ${plural(f, 'falta', 'faltan')} ${f} ${plural(f, 'carácter', 'caracteres')} (mínimo ${MIN_PASSWORD}).`;
+      }
+      const e2 = !p2 ? 'Repite la nueva contraseña.' : (p1 !== p2 ? 'Las contraseñas no coinciden.' : '');
+      const ok1 = setMsg('pw-new', e1), ok2 = setMsg('pw-new2', e1 ? '' : e2);
+      if (!ok1) { document.getElementById('pw-new').focus(); return; }
+      if (!ok2) { document.getElementById('pw-new2').focus(); return; }
+
+      const btn = e.target.querySelector('button[type="submit"]');
+      btn.disabled = true; btn.textContent = 'Cambiando...';
+      const { error } = await supabase.auth.updateUser({ password: p1 });
+      btn.disabled = false; btn.textContent = 'Cambiar contraseña';
+      if (error) { setMsg('pw-new', traducirErrorAuth(error.message)); return; }
+      e.target.reset();
+      toast('Contraseña actualizada', 'success');
+    });
+  }
 }
 
 /* =========================================================================
@@ -1073,26 +1185,6 @@ $('register-form').addEventListener('submit', async e => {
     setTimeout(() => { btn.disabled = false; }, 1500);
   });
 });
-
-/* Animación de entrada del estante (una sola vez al abrir la página) */
-(function initShelf(){
-  const qtys = document.querySelectorAll('.shelf-qty');
-  if (!qtys.length || window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
-  qtys.forEach((el, i) => {
-    const target = parseInt(el.dataset.qty, 10) || 0;
-    el.textContent = '0';
-    const delay = 250 + i * 140, dur = 900;
-    setTimeout(() => {
-      const t0 = performance.now();
-      const tick = now => {
-        const p = Math.min(1, (now - t0) / dur);
-        el.textContent = String(Math.round(target * (1 - Math.pow(1 - p, 3))));
-        if (p < 1) requestAnimationFrame(tick);
-      };
-      requestAnimationFrame(tick);
-    }, delay);
-  });
-})();
 
 document.getElementById('logout-btn').addEventListener('click', async () => {
   await Auth.logout();

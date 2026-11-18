@@ -6,7 +6,7 @@
 <title>NEXO · Ventas e inventario</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Big+Shoulders+Display:wght@600;700;800&family=Instrument+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Big+Shoulders+Display:wght@600;700;800&family=Instrument+Sans:wght@400;500;600;700&family=Atkinson+Hyperlegible:wght@400;700&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="css/style.css">
 </head>
 <body>
@@ -21,41 +21,6 @@
       <p class="aside-text">Registra pedidos, controla el inventario y consulta el historial de tus clientes desde un solo lugar.</p>
     </div>
 
-    <div class="shelf" aria-hidden="true">
-      <p class="shelf-caption">Vista de ejemplo del inventario</p>
-      <ul class="shelf-list">
-        <li class="shelf-tag" data-status="ok">
-          <span class="shelf-loc">A-01</span>
-          <span class="shelf-name">Teclado mecánico TK-80</span>
-          <span class="shelf-qty" data-qty="24">24</span>
-          <span class="shelf-status">Disponible</span>
-        </li>
-        <li class="shelf-tag" data-status="low">
-          <span class="shelf-loc">A-02</span>
-          <span class="shelf-name">Mouse inalámbrico Orbit</span>
-          <span class="shelf-qty" data-qty="4">4</span>
-          <span class="shelf-status">Stock bajo</span>
-        </li>
-        <li class="shelf-tag" data-status="ok">
-          <span class="shelf-loc">B-01</span>
-          <span class="shelf-name">Monitor 24" FullHD</span>
-          <span class="shelf-qty" data-qty="12">12</span>
-          <span class="shelf-status">Disponible</span>
-        </li>
-        <li class="shelf-tag" data-status="ok">
-          <span class="shelf-loc">B-02</span>
-          <span class="shelf-name">Laptop UltraBook 14"</span>
-          <span class="shelf-qty" data-qty="6">6</span>
-          <span class="shelf-status">Disponible</span>
-        </li>
-        <li class="shelf-tag" data-status="out">
-          <span class="shelf-loc">C-01</span>
-          <span class="shelf-name">Audífonos NoiseOut</span>
-          <span class="shelf-qty" data-qty="0">0</span>
-          <span class="shelf-status">Agotado</span>
-        </li>
-      </ul>
-    </div>
   </aside>
 
   <main class="auth-main">
@@ -201,6 +166,7 @@
 <script src="js/config.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.min.js"></script>
 <script src="js/api.js"></script>
+<script src="js/a11y.js"></script>
 <script src="js/app.js"></script>
 </body>
 </html>

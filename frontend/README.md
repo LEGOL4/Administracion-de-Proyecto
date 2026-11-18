@@ -9,6 +9,7 @@ frontend/
 └── js/
     ├── config.js   URL de Supabase, clave pública y URL del backend (no cambió)
     ├── api.js      Cliente de Supabase (solo autenticación) + cliente de la API PHP (no cambió)
+    ├── a11y.js     Panel de accesibilidad (texto, daltonismo, contraste, cursor, fuente, animaciones)
     └── app.js      Acceso, validaciones y vistas por rol
 ```
 
