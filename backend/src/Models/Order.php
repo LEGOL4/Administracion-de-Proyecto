@@ -35,6 +35,22 @@ final class Order
         return (string) $id;
     }
 
+    /** Corrige el pedido con la función atómica editar_pedido() de Postgres. */
+    public static function update(string $token, string $id, string $clienteId, array $items): void
+    {
+        Supabase::rest('POST', 'rpc/editar_pedido', $token, [
+            'p_order_id' => $id,
+            'p_cliente_id' => $clienteId,
+            'p_items' => $items,
+        ]);
+    }
+
+    /** Elimina el pedido y devuelve el stock (función eliminar_pedido() de Postgres). */
+    public static function delete(string $token, string $id): void
+    {
+        Supabase::rest('POST', 'rpc/eliminar_pedido', $token, ['p_order_id' => $id]);
+    }
+
     /**
      * Normaliza los pedidos y agrega los nombres de cliente/vendedor.
      * Los nombres se leen con service_role porque un cliente no puede leer el perfil
