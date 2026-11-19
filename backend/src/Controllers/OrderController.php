@@ -34,8 +34,37 @@ final class OrderController
     {
         $b = $req->json();
         $clienteId = Validator::uuid($b['cliente_id'] ?? null, 'cliente_id');
+        $items = self::items($b['items'] ?? null);
 
-        $raw = $b['items'] ?? null;
+        $id = Order::create($user['token'], $clienteId, $items);
+        return ['__status' => 201, 'data' => Order::find($user['token'], $id)];
+    }
+
+    /**
+     * Corrige una venta (cliente y/o productos). Ajusta el stock de forma atómica.
+     * Un vendedor solo puede editar sus ventas; el administrador, todas (lo valida la base de datos).
+     */
+    public static function update(Request $req, array $params, array $user): array
+    {
+        $id = Validator::uuid($params['id']);
+        $b = $req->json();
+        $clienteId = Validator::uuid($b['cliente_id'] ?? null, 'cliente_id');
+        $items = self::items($b['items'] ?? null);
+
+        Order::update($user['token'], $id, $clienteId, $items);
+        return Order::find($user['token'], $id);
+    }
+
+    /** Elimina una venta y devuelve su stock al inventario. */
+    public static function destroy(Request $req, array $params, array $user): array
+    {
+        Order::delete($user['token'], Validator::uuid($params['id']));
+        return ['deleted' => true];
+    }
+
+    /** @return array<int,array{product_id:string,cantidad:int}> */
+    private static function items(mixed $raw): array
+    {
         if (!is_array($raw) || !$raw || count($raw) > 100) {
             throw new ApiException(422, 'El pedido debe tener entre 1 y 100 productos.');
         }
@@ -49,8 +78,6 @@ final class OrderController
                 'cantidad' => Validator::entero($it['cantidad'] ?? null, 'La cantidad', 1, 9999),
             ];
         }
-
-        $id = Order::create($user['token'], $clienteId, $items);
-        return ['__status' => 201, 'data' => Order::find($user['token'], $id)];
+        return $items;
     }
 }
