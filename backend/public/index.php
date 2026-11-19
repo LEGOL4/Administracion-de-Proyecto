@@ -59,6 +59,8 @@ try {
     // Pedidos
     $r->add('GET', '/api/orders', [OrderController::class, 'index'], $ALL);
     $r->add('POST', '/api/orders', [OrderController::class, 'store'], $STAFF);
+    $r->add('PUT', '/api/orders/{id}', [OrderController::class, 'update'], $STAFF);
+    $r->add('DELETE', '/api/orders/{id}', [OrderController::class, 'destroy'], $STAFF);
 
     // Reportes
     $r->add('GET', '/api/dashboard', [ReportController::class, 'dashboard'], $ADMIN);
