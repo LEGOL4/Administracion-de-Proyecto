@@ -642,6 +642,7 @@ function renderOrdersTable(orders, opts = {}){
         <td>${money(o.total)}</td>
         <td>${estadoBadge(o.estado)}</td>
         ${opts.actions ? `<td class="row-actions">
+          <button class="btn-ghost btn-small" data-receipt-order="${o.id}">Comprobante</button>
           <button class="btn-ghost btn-small" data-edit-order="${o.id}">Editar</button>
           <button class="btn-danger btn-small" data-del-order="${o.id}">Eliminar</button>
         </td>` : ''}
@@ -772,20 +773,33 @@ async function renderNuevoPedido(){
   drawCart();
 }
 
-function showReceipt(order){
+function showReceipt(order, opts = {}){
   openModal('Comprobante de venta', `
     <div class="receipt">
       <div class="r-row"><strong>NEXO · Comprobante</strong><span>#${order.id.slice(0,8).toUpperCase()}</span></div>
       <div class="r-row"><span>Fecha</span><span>${formatDate(order.fecha)}</span></div>
       <div class="r-row"><span>Cliente</span><span>${order.clienteNombre}</span></div>
-      <div class="r-row"><span>Atendido por</span><span>${order.vendedorNombre}</span></div>
+      <div class="r-row"><span>Atendido por</span><span>${order.vendedorNombre || '—'}</span></div>
       <hr>
       ${order.items.map(it => `<div class="r-row"><span>${it.cantidad} × ${it.nombre}</span><span>${money(it.precioUnit*it.cantidad)}</span></div>`).join('')}
       <hr>
       <div class="r-row"><strong>TOTAL</strong><strong>${money(order.total)}</strong></div>
     </div>
-    <div class="modal-footer"><button class="btn-primary" id="btn-close-receipt">Listo</button></div>`);
-  document.getElementById('btn-close-receipt').addEventListener('click', () => { closeModal(); goTo('mis-ventas'); });
+    <div class="modal-footer">
+      <button class="btn-ghost" data-download="ticket">Descargar ticket</button>
+      <button class="btn-ghost" data-download="pdf">Descargar PDF</button>
+      <button class="btn-primary" id="btn-close-receipt">${opts.reopen ? 'Cerrar' : 'Listo'}</button>
+    </div>`);
+  document.querySelectorAll('#modal-body [data-download]').forEach(b => b.addEventListener('click', () => {
+    try {
+      Receipt.download(order, b.dataset.download === 'ticket' ? 'ticket' : 'pdf');
+      toast(b.dataset.download === 'ticket' ? 'Ticket descargado' : 'PDF descargado', 'success');
+    } catch (_) { toast('No se pudo generar el archivo. Inténtalo de nuevo.', 'error'); }
+  }));
+  document.getElementById('btn-close-receipt').addEventListener('click', () => {
+    closeModal();
+    if (!opts.reopen) goTo('mis-ventas');
+  });
 }
 
 async function renderMisVentas(){
@@ -794,6 +808,9 @@ async function renderMisVentas(){
   const orders = await Data.getOrdersByVendedor(currentSession.id);
   content.innerHTML = `<div class="panel"><div class="panel-body">${renderOrdersTable(orders, { actions: true })}</div></div>`;
 
+  content.querySelectorAll('[data-receipt-order]').forEach(b => b.addEventListener('click', () => {
+    showReceipt(orders.find(o => o.id === b.dataset.receiptOrder), { reopen: true });
+  }));
   content.querySelectorAll('[data-edit-order]').forEach(b => b.addEventListener('click', () => {
     openEditOrder(orders.find(o => o.id === b.dataset.editOrder));
   }));
@@ -980,7 +997,10 @@ async function renderMisPedidos(){
           <div class="panel" style="box-shadow:none;margin-bottom:14px;">
             <div class="panel-head">
               <h3>Pedido #${o.id.slice(0,8).toUpperCase()}</h3>
-              ${estadoBadge(o.estado)}
+              <div style="display:flex;align-items:center;gap:10px;">
+                ${estadoBadge(o.estado)}
+                <button class="btn-ghost btn-small" data-receipt-order="${o.id}">Comprobante</button>
+              </div>
             </div>
             <div class="panel-body">
               <p class="cell-muted" style="margin:0 0 10px;">${formatDate(o.fecha)} · Atendido por ${o.vendedorNombre || 'autogestión'}</p>
@@ -990,6 +1010,9 @@ async function renderMisPedidos(){
           </div>`).join('') : `<div class="empty-state"><div class="empty-icon">${ICON.box}</div><p>Todavía no realizaste ningún pedido.</p></div>`}
       </div>
     </div>`;
+  content.querySelectorAll('[data-receipt-order]').forEach(b => b.addEventListener('click', () => {
+    showReceipt(orders.find(o => o.id === b.dataset.receiptOrder), { reopen: true });
+  }));
 }
 
 function refreshSidebarUser(){
