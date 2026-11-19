@@ -105,6 +105,13 @@ const Data = {
     });
     return order.id;
   },
+  updateOrder(id, clienteId, items){
+    return Api.put('/orders/' + id, {
+      cliente_id: clienteId,
+      items: items.map(i => ({ product_id: i.productId, cantidad: i.cantidad }))
+    });
+  },
+  deleteOrder(id){ return Api.del('/orders/' + id); },
 };
 
 function mapOrder(o){
@@ -623,10 +630,10 @@ async function renderReportes(){
     </div>`;
 }
 
-function renderOrdersTable(orders){
+function renderOrdersTable(orders, opts = {}){
   if (!orders.length) return `<div class="empty-state"><div class="empty-icon">${ICON.box}</div><p>Sin registros todavía.</p></div>`;
   return `<table>
-    <thead><tr><th>Cliente</th><th>Vendedor</th><th>Fecha</th><th>Total</th><th>Estado</th></tr></thead>
+    <thead><tr><th>Cliente</th><th>Vendedor</th><th>Fecha</th><th>Total</th><th>Estado</th>${opts.actions ? '<th></th>' : ''}</tr></thead>
     <tbody>${orders.map(o => `
       <tr>
         <td class="cell-strong">${o.clienteNombre}</td>
@@ -634,6 +641,10 @@ function renderOrdersTable(orders){
         <td class="cell-muted">${formatDate(o.fecha)}</td>
         <td>${money(o.total)}</td>
         <td>${estadoBadge(o.estado)}</td>
+        ${opts.actions ? `<td class="row-actions">
+          <button class="btn-ghost btn-small" data-edit-order="${o.id}">Editar</button>
+          <button class="btn-danger btn-small" data-del-order="${o.id}">Eliminar</button>
+        </td>` : ''}
       </tr>`).join('')}</tbody>
   </table>`;
 }
@@ -778,10 +789,133 @@ function showReceipt(order){
 }
 
 async function renderMisVentas(){
-  setTitle('Mis ventas', 'Pedidos que has registrado');
+  setTitle('Mis ventas', 'Pedidos que has registrado. Si te equivocaste, puedes corregirlos o eliminarlos.');
   const content = document.getElementById('view-content');
   const orders = await Data.getOrdersByVendedor(currentSession.id);
-  content.innerHTML = `<div class="panel"><div class="panel-body">${renderOrdersTable(orders)}</div></div>`;
+  content.innerHTML = `<div class="panel"><div class="panel-body">${renderOrdersTable(orders, { actions: true })}</div></div>`;
+
+  content.querySelectorAll('[data-edit-order]').forEach(b => b.addEventListener('click', () => {
+    openEditOrder(orders.find(o => o.id === b.dataset.editOrder));
+  }));
+  content.querySelectorAll('[data-del-order]').forEach(b => b.addEventListener('click', () => {
+    confirmDeleteOrder(orders.find(o => o.id === b.dataset.delOrder));
+  }));
+}
+
+function confirmDeleteOrder(order){
+  openModal('Eliminar venta', `
+    <p>Vas a eliminar la venta de <strong>${order.clienteNombre}</strong> por <strong>${money(order.total)}</strong>.</p>
+    <p class="cell-muted">Los productos de esta venta volverán al inventario. Esta acción no se puede deshacer.</p>
+    <div class="modal-footer">
+      <button class="btn-ghost" id="btn-del-cancel">Cancelar</button>
+      <button class="btn-primary" id="btn-del-confirm">Eliminar venta</button>
+    </div>`);
+  document.getElementById('btn-del-cancel').addEventListener('click', closeModal);
+  document.getElementById('btn-del-confirm').addEventListener('click', async e => {
+    const btn = e.currentTarget;
+    btn.disabled = true; btn.textContent = 'Eliminando...';
+    try {
+      await Data.deleteOrder(order.id);
+      closeModal();
+      toast('Venta eliminada. El stock fue devuelto al inventario.', 'success');
+      renderMisVentas();
+    } catch (err) {
+      btn.disabled = false; btn.textContent = 'Eliminar venta';
+      toast(err.message, 'error');
+    }
+  });
+}
+
+async function openEditOrder(order){
+  if (order.items.some(i => !i.productId)) {
+    toast('Esta venta incluye un producto que ya no existe y no se puede editar. Puedes eliminarla.', 'error');
+    return;
+  }
+  const [clientes, products] = await Promise.all([
+    Data.getProfiles().then(list => list.filter(u => u.rol === ROLES.CLIENTE)),
+    Data.getProducts()
+  ]);
+
+  // Lo que ya estaba en la venta vuelve al inventario al guardar, por eso cuenta como disponible.
+  const original = {};
+  order.items.forEach(i => { original[i.productId] = i.cantidad; });
+  const available = id => {
+    const p = products.find(x => x.id === id);
+    return (p ? p.stock : 0) + (original[id] || 0);
+  };
+  let lines = order.items.map(i => ({ productId: i.productId, nombre: i.nombre, precioUnit: Number(i.precioUnit), cantidad: i.cantidad }));
+
+  openModal('Editar venta', `
+    <div class="form-grid">
+      <label class="full">Cliente
+        <select id="edit-cliente">
+          ${clientes.map(c => `<option value="${c.id}" ${c.id === order.clienteId ? 'selected' : ''}>${c.nombre} — ${c.email}</option>`).join('')}
+        </select>
+      </label>
+      <label class="full">Agregar producto
+        <select id="edit-add"></select>
+      </label>
+    </div>
+    <div id="edit-lines" style="margin-top:14px;"></div>
+    <div class="cart-total"><span>Total</span><span id="edit-total">${money(0)}</span></div>
+    <div class="modal-footer">
+      <button class="btn-ghost" id="btn-edit-cancel">Cancelar</button>
+      <button class="btn-primary" id="btn-edit-save">Guardar cambios</button>
+    </div>`);
+
+  const draw = () => {
+    const addSel = document.getElementById('edit-add');
+    const addable = products.filter(p => !lines.some(l => l.productId === p.id) && available(p.id) > 0);
+    addSel.innerHTML = `<option value="">Selecciona un producto...</option>` +
+      addable.map(p => `<option value="${p.id}">${p.nombre} — ${money(p.precio)} (${available(p.id)} disp.)</option>`).join('');
+
+    document.getElementById('edit-lines').innerHTML = lines.length ? lines.map(l => `
+      <div class="cart-line">
+        <span>${l.nombre}</span>
+        <div class="qty-stepper">
+          <button type="button" data-dec="${l.productId}" aria-label="Quitar uno">−</button>
+          <span>${l.cantidad}</span>
+          <button type="button" data-inc="${l.productId}" aria-label="Agregar uno">+</button>
+        </div>
+        <span class="cell-strong">${money(l.precioUnit * l.cantidad)}</span>
+      </div>`).join('') : `<p class="cell-muted">La venta no tiene productos. Agrega al menos uno.</p>`;
+    document.getElementById('edit-total').textContent = money(lines.reduce((s, l) => s + l.precioUnit * l.cantidad, 0));
+
+    document.querySelectorAll('#edit-lines [data-inc]').forEach(b => b.addEventListener('click', () => {
+      const l = lines.find(x => x.productId === b.dataset.inc);
+      if (l.cantidad + 1 > available(l.productId)) { toast('No hay suficiente stock disponible', 'error'); return; }
+      l.cantidad += 1; draw();
+    }));
+    document.querySelectorAll('#edit-lines [data-dec]').forEach(b => b.addEventListener('click', () => {
+      const l = lines.find(x => x.productId === b.dataset.dec);
+      l.cantidad -= 1;
+      if (l.cantidad <= 0) lines = lines.filter(x => x !== l);
+      draw();
+    }));
+    addSel.addEventListener('change', () => {
+      const p = products.find(x => x.id === addSel.value);
+      if (!p) return;
+      lines.push({ productId: p.id, nombre: p.nombre, precioUnit: Number(p.precio), cantidad: 1 });
+      draw();
+    });
+  };
+  draw();
+
+  document.getElementById('btn-edit-cancel').addEventListener('click', closeModal);
+  document.getElementById('btn-edit-save').addEventListener('click', async e => {
+    if (!lines.length) { toast('Agrega al menos un producto', 'error'); return; }
+    const btn = e.currentTarget;
+    btn.disabled = true; btn.textContent = 'Guardando...';
+    try {
+      await Data.updateOrder(order.id, document.getElementById('edit-cliente').value, lines);
+      closeModal();
+      toast('Venta actualizada', 'success');
+      renderMisVentas();
+    } catch (err) {
+      btn.disabled = false; btn.textContent = 'Guardar cambios';
+      toast(err.message, 'error');
+    }
+  });
 }
 
 async function renderHistorialClientes(){
